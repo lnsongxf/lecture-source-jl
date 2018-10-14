@@ -335,7 +335,7 @@ The code is as follows
       f, g, β, c = sp.f, sp.g, sp.β, sp.c
 
       # Construct interpolator over π_grid, given ϕ
-      ϕ_f = LinInterp(sp.π_grid, ϕ)
+      ϕ_f = LinearInterpolation(sp.π_grid, ϕ, extrapolation_bc=Line())
 
       # set up quadrature nodes/weights
       q_nodes, q_weights = qnwlege(7, 0.0, sp.w_max)
