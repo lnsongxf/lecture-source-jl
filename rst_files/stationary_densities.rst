@@ -492,44 +492,49 @@ The following code is example of usage for the stochastic growth model :ref:`des
 
 .. code-block:: julia
 
-    using Distributions, StatPlots, Plots, QuantEcon, Random
-    Random.seed!(42) # For deterministic results.
+using Distributions, StatPlots, Plots, QuantEcon, Random
+Random.seed!(42) # For deterministic results.
 
-    # model and simulation parameters 
-    s = 0.2
-    δ = 0.1
-    a_σ = 0.4                    # A = exp(B) where B ~ N(0, a_σ)
-    α = 0.4                      # We set f(k) = k**α
-    ψ_0 = Beta(5.0, 5.0)         # Initial distribution
-    ϕ = LogNormal(0.0, a_σ)
+# model and simulation parameters
+s = 0.2
+δ = 0.1
+a_σ = 0.4                    # A = exp(B) where B ~ N(0, a_σ)
+α = 0.4                      # We set f(k) = k**α
+ψ_0 = Beta(5.0, 5.0)         # Initial distribution
+ϕ = LogNormal(0.0, a_σ)
 
-    n = 10000  # Number of observations at each date t
-    T = 30     # Compute density of k_t at 1,...,T+1
+n = 10000  # Number of observations at each date t
+T = 30     # Compute density of k_t at 1,...,T+1
 
-    # stochastic kernel for scalars with Cobbs-Douglas production 
-    f(x) = s*x^α
-    p(x, y) = 1/f(x) * pdf(ϕ, (y - (1-δ)*x)/f(x))
+# stochastic kernel for scalars with Cobbs-Douglas production
+f(x) = s*x^α
+function p(x, y)
+    pdf_arg = (y - (1-δ)*x)/f(x)
+    rounded_arg = clamp(pdf_arg, eps(), Inf) # eps() is machine epsilon, or the smallest positive float
+    1/f(x) * pdf(ϕ, rounded_arg)
+end
 
-    # generate matrix s.t. t-th column is n observations of k_t
-    k = zeros(n, T)
-    A = rand!(ϕ, zeros(n, T))
+# generate matrix s.t. t-th column is n observations of k_t
+k = zeros(n, T)
+A = rand!(ϕ, zeros(n, T))
 
-    # draw first column, then iterate 
-    k[:, 1] = rand(ψ_0, n) ./ 2  # divide by 2 to match scale = 0.5 in py version
-    for t ∈ 2:T
-        k[:, t] = s*A[:, t-1].* k[:, t-1].^α .+ (1-δ) .* k[:, t-1]
-    end
+# draw first column, then iterate
+k[:, 1] = rand(ψ_0, n) ./ 2  # divide by 2 to match scale = 0.5 in py version
+for t ∈ 2:T
+    k[:, t] = s*A[:, t-1].* k[:, t-1].^α .+ (1-δ) .* k[:, t-1]
+end
 
-    # generate T instances of LAE using this data, one for each date t
-    laes = [LAE(p, k[:, t]) for t ∈ T:-1:1] # goes backwards
+# generate T instances of LAE using this data, one for each date t
+vectorized_p = (x, y) -> p.(x, y)
+laes = [LAE(vectorized_p, k[:, t]) for t ∈ T:-1:1] # goes backwards
 
-    # use LAE estimators 
-    ygrid = range(0.01, 4.0, length = 200)
-    laes_plot = [lae_est(laes[i], ygrid) for i in 1:T]
+# use LAE estimators
+ygrid = range(0.01, 4.0, length = 200)
+laes_plot = [lae_est(laes[i], ygrid) for i in 1:T]
 
-    # plot
-    colors = [RGBA(0, 0, 0, 1 - (i - 1)/T) for i in 1:T] # gets darker over time 
-    plot(ygrid, laes_plot, color = colors, lw = 2, xlabel = "capital", legend = :none, title = "Density of k_1 (lighter) to k_T (darker) for T=$T")
+# plot
+colors = [RGBA(0, 0, 0, 1 - (i - 1)/T) for i in 1:T] # gets darker over time
+plot(ygrid, laes_plot, color = colors, lw = 2, xlabel = "capital", legend = :none, title = "Density of k_1 (lighter) to k_T (darker) for T=$T")
 
 .. code-block:: julia
     :class: test
@@ -1002,14 +1007,15 @@ to get an idea of the speed of convergence.
 
     # stochastic kernel for the TAR model.
     p_TAR(x, y) = 1/d * pdf(ϕ, (y - θ * abs(x)) / d)
+    vectorized_p_TAR = (x, y) -> p_TAR.(x, y)
 
     Z = rand(ϕ, n)
     X = zeros(n)
     for t ∈ 1:n-1
-        X[t+1] = θ * abs(X[t]) + d * Z[t]
+        X[t+1] = θ * abs.(X[t]) + d * Z[t]
     end
 
-    ψ_est(a) = lae_est(LAE(p_TAR, X), a)
+    ψ_est(a) = lae_est(LAE(vectorized_p_TAR, X), a)
     k_est = kde(X)
 
     ys = range(-3,  3, length = 200)
