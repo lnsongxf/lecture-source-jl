@@ -492,58 +492,44 @@ The following code is example of usage for the stochastic growth model :ref:`des
 
 .. code-block:: julia
 
-  using Distributions, LaTeXStrings, StatPlots, Plots, QuantEcon, Random
-  Random.seed!(42) # For deterministic results.
+    using Distributions, StatPlots, Plots, QuantEcon, Random
+    Random.seed!(42) # For deterministic results.
 
-  s = 0.2
-  δ = 0.1
-  a_σ = 0.4                    # A = exp(B) where B ~ N(0, a_σ)
-  α = 0.4                      # We set f(k) = k**α
-  ψ_0 = Beta(5.0, 5.0)         # Initial distribution
-  ϕ = LogNormal(0.0, a_σ)
+    # model and simulation parameters 
+    s = 0.2
+    δ = 0.1
+    a_σ = 0.4                    # A = exp(B) where B ~ N(0, a_σ)
+    α = 0.4                      # We set f(k) = k**α
+    ψ_0 = Beta(5.0, 5.0)         # Initial distribution
+    ϕ = LogNormal(0.0, a_σ)
 
+    n = 10000  # Number of observations at each date t
+    T = 30     # Compute density of k_t at 1,...,T+1
 
-  function p(x, y)
-      #=
-      Stochastic kernel for the growth model with Cobb-Douglas production.
-      Both x and y must be strictly positive.
-      =#
-      d = s * x.^α
+    # stochastic kernel for scalars with Cobbs-Douglas production 
+    f(x) = s*x^α
+    p(x, y) = 1/f(x) * pdf(ϕ, (y - (1-δ)*x)/f(x))
 
-      # scipy silently evaluates the pdf of the lognormal dist at a negative
-      # value as zero. It should be undefined and Julia recognizes this.
-      pdf_arg = clamp.((y .- (1-δ) .* x) ./ d, eps(), Inf)
-      return pdf.(ϕ, pdf_arg) ./ d
-  end
+    # generate matrix s.t. t-th column is n observations of k_t
+    k = zeros(n, T)
+    A = rand!(ϕ, zeros(n, T))
 
-  n = 10000  # Number of observations at each date t
-  T = 30     # Compute density of k_t at 1,...,T+1
+    # draw first column, then iterate 
+    k[:, 1] = rand(ψ_0, n) ./ 2  # divide by 2 to match scale = 0.5 in py version
+    for t ∈ 2:T
+        k[:, t] = s*A[:, t-1].* k[:, t-1].^α .+ (1-δ) .* k[:, t-1]
+    end
 
-  # Generate matrix s.t. t-th column is n observations of k_t
-  k = zeros(n, T)
-  A = rand!(ϕ, zeros(n, T))
+    # generate T instances of LAE using this data, one for each date t
+    laes = [LAE(p, k[:, t]) for t ∈ T:-1:1] # goes backwards
 
-  # Draw first column from initial distribution
-  k[:, 1] = rand(ψ_0, n) ./ 2  # divide by 2 to match scale = 0.5 in py version
-  for t ∈ 1:T-1
-      k[:, t+1] = s*A[:, t] .* k[:, t].^α + (1-δ) .* k[:, t]
-  end
+    # use LAE estimators 
+    ygrid = range(0.01, 4.0, length = 200)
+    laes_plot = [lae_est(laes[i], ygrid) for i in 1:T]
 
-  # Generate T instances of LAE using this data, one for each date t
-  laes = [LAE(p, k[:, t]) for t ∈ T:-1:1]
-
-  # Plot
-  ygrid = range(0.01,  4.0, length = 200)
-  laes_plot = []
-  colors = []
-  for i ∈ 1:T
-      ψ = laes[i]
-      push!(laes_plot, lae_est(ψ , ygrid))
-      push!(colors,  RGBA(0, 0, 0, 1 - (i - 1)/T))
-  end
-  plot(ygrid, laes_plot, color = reshape(colors, 1, length(colors)), lw = 2, xlabel = "capital", legend = :none)
-  t = LaTeXString("Density of \$k_1\$ (lighter) to \$k_T\$ (darker) for \$T=$T\$")
-  plot!(title = t)
+    # plot
+    colors = [RGBA(0, 0, 0, 1 - (i - 1)/T) for i in 1:T] # gets darker over time 
+    plot(ygrid, laes_plot, color = colors, lw = 2, xlabel = "capital", legend = :none, title = "Density of k_1 (lighter) to k_T (darker) for T=$T")
 
 .. code-block:: julia
     :class: test
@@ -917,10 +903,10 @@ To illustrate, let's generate three artificial data sets and compare them with a
     y = randn(n) .+ 2.0  # N(2, 1)
     z = randn(n) .+ 4.0  # N(4, 1)
     data = vcat(x, y, z)
-    l = [LaTeXString("\$X\$") LaTeXString("\$Y\$")  LaTeXString("\$Z\$") ]
+    l = ["X" "Y" "Z"]
     xlabels = reshape(repeat(l, n), 3n, 1)
 
-    boxplot(xlabels, data, label = "", ylims = (-2, 14))
+    boxplot(xlabels, data, label = l, ylims = (-2, 14))
 
 .. code-block:: julia
     :class: test
@@ -1014,8 +1000,8 @@ to get an idea of the speed of convergence.
     # true density of TAR model
     ψ_star(y) = 2 .* pdf.(ϕ, y) .* cdf.(ϕ, δ * y)
 
-    # Stochastic kernel for the TAR model.
-    p_TAR(x, y) = pdf.(ϕ, (y .- θ .* abs.(x)) ./ d) ./ d
+    # stochastic kernel for the TAR model.
+    p_TAR(x, y) = 1/d * pdf(ϕ, (y - θ * abs(x)) / d)
 
     Z = rand(ϕ, n)
     X = zeros(n)
@@ -1046,7 +1032,8 @@ Exercise 2
 Here's one program that does the job.
 
 .. code-block:: julia
-
+    
+    # model and simulation parameters 
     s = 0.2
     δ = 0.1
     a_σ = 0.4  # A = exp(B) where B ~ N(0, a_σ)
@@ -1055,27 +1042,18 @@ Here's one program that does the job.
     ϕ = LogNormal(0.0, a_σ)
     Random.seed!(42)  # reproducible results
 
-
-    function p_growth(x, y)
-        #=
-        Stochastic kernel for the growth model with Cobb-Douglas production.
-        Both x and y must be strictly positive.
-        =#
-            d = s * x.^α
-
-        # scipy silently evaluates the pdf of the lognormal dist at a negative
-        # value as zero. It should be undefined and Julia recognizes this.
-        pdf_arg = clamp.((y .- (1-δ) .* x) ./ d, eps(), Inf)
-        return pdf.(ϕ, pdf_arg) ./ d
-    end
-
     n = 1000  # Number of observations at each date t
     T = 40    # Compute density of k_t at 1,...,T+1
 
+    # stochastic kernel, as before 
+    f(x) = s*x^α
+    p(x, y) = 1/f(x) * pdf(ϕ, (y - (1-δ)*x)/f(x))
+
     xmax = 6.5
     ygrid = range(0.01,  xmax, length = 150)
-    laes_plot = zeros(length(ygrid), 4*T)
-    colors = []
+    laes_plot = zeros(length(ygrid), 4*T) # allocated for all 4 runs 
+    colors = [RGBA(0, 0, 0, 1 - (j-1)/T) for j in 1:T]
+
     for i ∈ 1:4
         k = zeros(n, T)
         A = rand!(ϕ, zeros(n, T))
@@ -1089,17 +1067,9 @@ Here's one program that does the job.
 
         # Generate T instances of LAE using this data, one for each date t
         laes = [LAE(p_growth, k[:, t]) for t ∈ T:-1:1]
-        ind = i
-        for j ∈ 1:T
-            ψ = laes[j]
-            laes_plot[:, ind] = lae_est(ψ, ygrid)
-            ind = ind + 4
-            push!(colors,  RGBA(0, 0, 0, 1 - (j - 1)/T))
-        end
+        laes_plot[:, i] .= [lae_est(laes[j], ygrid) for j in 1:T]
     end
 
-    #colors = reshape(reshape(colors, T, 4)', 4*T, 1)
-    colors = reshape(colors, 1, length(colors))
     plot(ygrid, laes_plot, layout = (2,2), color = colors,
             legend = :none, xlabel = "capital", xlims = (0, xmax))
 
