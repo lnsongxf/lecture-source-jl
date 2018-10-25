@@ -506,7 +506,7 @@ a_σ = 0.4                    # A = exp(B) where B ~ N(0, a_σ)
 n = 10000  # Number of observations at each date t
 T = 30     # Compute density of k_t at 1,...,T+1
 
-# stochastic kernel for scalars with Cobbs-Douglas production
+# scalar stochastic kernel for scalars with Cobbs-Douglas production
 f(x) = s*x^α
 function p(x, y)
     pdf_arg = (y - (1-δ)*x)/f(x)
@@ -903,13 +903,13 @@ To illustrate, let's generate three artificial data sets and compare them with a
     Random.seed!(42) # For determinism
 
     n = 500
-    x = randn(n)        # N(0, 1)
-    x = exp.(x)         # Map x to lognormal
+    x = randn(n)         # N(0, 1)
+    x = exp.(x)          # map x to lognormal
     y = randn(n) .+ 2.0  # N(2, 1)
     z = randn(n) .+ 4.0  # N(4, 1)
     data = vcat(x, y, z)
     l = ["X" "Y" "Z"]
-    xlabels = reshape(repeat(l, n), 3n, 1)
+    xlabels = [repeat(["X"], 500); repeat(["Y"], 500); repeat(["Z"], 500)]
 
     boxplot(xlabels, data, label = l, ylims = (-2, 14))
 
@@ -1109,13 +1109,9 @@ series for one boxplot all at once.
     initial_conditions = range(8,  0, length = J)
 
     Z = randn(k, n, J)
-    titles = []
     data = []
     x_labels = []
     for j ∈ 1:J
-        title = "time series from t = $(initial_conditions[j])"
-        push!(titles, title)
-
         X = zeros(k, n)
         X[:, 1] .= initial_conditions[j]
         labels = []
@@ -1128,8 +1124,10 @@ series for one boxplot all at once.
         push!(data, X)
         push!(x_labels, labels)
     end
-    boxplot(x_labels, data, layout = (J,1), title = reshape(titles, 1, length(titles)), ylims = (-4, 8),
-    legend = :none, yticks = -4:2:8, xticks = 1:20)
+    
+    
+    titles = ["t=1", "t=2", "t=3", "t=4", "t=5", "t=6"]
+    boxplot(x_labels, data, layout = (J,1), title = titles, ylims = (-4, 8), legend = :none, yticks = -4:2:8, xticks = 1:20)
     plot!(size=(800, 2000))
 
 .. code-block:: julia
