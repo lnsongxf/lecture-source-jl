@@ -318,7 +318,7 @@ Let's start with some imports
 
 .. code-block:: julia
 
-    using Plots, QuantEcon, Distributions, LaTeXStrings, LinearAlgebra, Random
+    using Plots, QuantEcon, Distributions, LaTeXStrings, LinearAlgebra, Random, Expectations
     gr(fmt=:png)
 
 Here's the distribution of wage offers we'll work with
@@ -330,6 +330,7 @@ Here's the distribution of wage offers we'll work with
     w_min, w_max = 10, 60
     const w_vals = range(w_min,  w_max, length = n+1)
     dist = BetaBinomial(n, a, b)
+    E = expectation(dist)
     const p_vals = pdf.(dist, support(dist))
 
     plt = plot(w_vals, p_vals, label = L"$p_i$", xlabel = "wages", ylabel = "probabilities")
@@ -565,13 +566,13 @@ Here's an implementation:
                                           tol = 1e-5)
          First compute ψ
 
-        ψ = dot(w_vals, p_vals) ./ (1 - β)
+        ψ = E * w_vals ./ (1 - β)
         i = 0
         error = tol + 1
         while i < max_iter && error > tol
 
             s = max.((w_vals ./ (1 - β)), ψ)
-            ψ_next = c + β * dot(s, p_vals)
+            ψ_next = c + β * E * s
 
             error = abs.(ψ_next - ψ)
             i += 1

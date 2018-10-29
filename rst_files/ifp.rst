@@ -63,7 +63,7 @@ Activate the ``QuantEconLecturePackages`` project environment and package versio
 
     using InstantiateFromURL
     activate_github("QuantEcon/QuantEconLecturePackages")
-    using LinearAlgebra, Statistics, Compat
+    using LinearAlgebra, Statistics, Compat, Expectations, Distributions
 
 The Optimal Savings Problem
 ===============================
@@ -454,8 +454,10 @@ Here's the code for a type called ``ConsumerProblem`` that stores primitives, as
             for (i_a, a) in enumerate(asset_grid)
 
                 function obj(c)
-                    EV = dot(vf.(R * a + z - c, z_idx), Π[i_z, :]) # compute expectation
-                    return u(c)   β * EV
+                    dist = Categorical(Π[i_z, :])
+                    E = expectation(dist)
+                    EV = E * vf.(R * a + z - c, z_idx)
+                    return u(c) + β * EV
                 end
                 res = optimize(obj, opt_lb, R .* a .+ z .+ b)
                 c_star = Optim.minimizer(res)
@@ -497,7 +499,9 @@ Here's the code for a type called ``ConsumerProblem`` that stores primitives, as
             for (i_a, a) in enumerate(asset_grid)
                 function h(t)
                     cps = cf.(R * a + z - t, z_idx) # c' for each z'
-                    expectation = dot(du.(cps), Π[i_z, :])
+                    dist = Categorical(Π[i_z, :])
+                    E = expectation(dist)
+                    expectation = E * du.(cps)
                     return abs(du(t) - max(gam * expectation, du(R * a + z + b)))
                 end
                 opt_ub = R*a + z + b  # addresses issue #8 on github

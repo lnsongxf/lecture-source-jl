@@ -56,11 +56,11 @@ Setup
 
 Activate the ``QuantEconLecturePackages`` project environment and package versions
 
-.. code-block:: julia 
+.. code-block:: julia
 
     using InstantiateFromURL
     activate_github("QuantEcon/QuantEconLecturePackages")
-    using LinearAlgebra, Statistics, Compat
+    using LinearAlgebra, Statistics, Compat, Expectations, Distributions
 
 The Economy
 ==============
@@ -431,8 +431,11 @@ The intersection gives equilibrium interest rates and capital
         # Compute the stationary distribution
         stationary_probs = stationary_distributions(results.mc)[:, 1][1]
 
+
         # Return K
-        return dot(am.s_vals[:, 1], stationary_probs)
+        dist = Categorical(stationary_probs)
+        E = expectation(dist)
+        return E * am.s_vals[:, 1]
     end
 
     # Create an instance of Household
