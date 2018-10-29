@@ -54,7 +54,7 @@ A continuous time version of the model by SeHyoun Ahn and Benjamin Moll can be f
 Setup
 ------------------
 
-Activate the ``QuantEconLecturePackages`` project environment and package versions
+.. literalinclude:: /_static/includes/deps.jl
 
 .. code-block:: julia
 

@@ -54,13 +54,7 @@ In order to focus on computation, we leave longer proofs to these sources (while
 Setup
 ------------------
 
-Activate the ``QuantEconLecturePackages`` project environment and package versions
-
-.. code-block:: julia
-
-    using InstantiateFromURL
-    activate_github("QuantEcon/QuantEconLecturePackages")
-    using LinearAlgebra, Statistics, Compat
+.. literalinclude:: /_static/includes/deps.jl
 
 Introduction
 ====================
@@ -1418,7 +1412,7 @@ where :math:`\{w_t\}` is iid :math:`N(0, 1)` and the coefficients
     x0 = [0.0; 1.0; 0.0; 0.0]
     xp, up, wp = compute_sequence(lq, x0)
 
-    # Convert results back to assets, consumption and income
+    # == Convert results back to assets, consumption and income == #
     ap = vec(xp[1, 1:end])                                  # Assets
     c = vec(up .+ c_bar)                                     # Consumption
     time = 1:T
@@ -1448,7 +1442,7 @@ the lecture.
 
 .. code-block:: julia
 
-    # Model parameters
+    # == Model parameters == #
     r = 0.05
     β = 1/(1 + r)
     T = 60
@@ -1583,7 +1577,7 @@ Our solution code is
     c = 2.0
     T = 120
 
-    # Useful constants
+    # == Useful constants == #
     m0 = (a0-c)/(2 * a1)
     m1 = 1/(2 * a1)
 
@@ -1601,7 +1595,7 @@ Our solution code is
 
     lq = LQ(Q, R, A, B, C; bet=β)
 
-    # Simulate state / control paths
+    # == Simulate state / control paths == #
     x0 = [m0; 2.0; 1.0]
     xp, up, wp = compute_sequence(lq, x0, 150)
     q_bar = vec(xp[1, :])
