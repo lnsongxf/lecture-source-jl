@@ -1213,7 +1213,7 @@ On the other hand, if we change the function to return ``0`` if ``x <= 0``, it i
 .. _spec_field_types:
 ..
 ..
-.. Specifying field Types
+.. Specifying Field Types
 .. ^^^^^^^^^^^^^^^^^^^^^^^^^
 ..
 ..
